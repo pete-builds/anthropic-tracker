@@ -1,5 +1,6 @@
 """Configuration constants and paths."""
 
+import os
 from pathlib import Path
 
 # Greenhouse public API (no auth required)
@@ -30,8 +31,13 @@ CURRENT_SCHEMA_VERSION = 1
 
 
 def get_db_path(db_path: str | None = None) -> Path:
-    """Resolve database file path."""
+    """Resolve database file path. Checks --db flag, TRACKER_DB env, then default."""
     if db_path:
         return Path(db_path)
+    env_path = os.environ.get("TRACKER_DB")
+    if env_path:
+        p = Path(env_path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        return p
     DEFAULT_DATA_DIR.mkdir(parents=True, exist_ok=True)
     return DEFAULT_DATA_DIR / DB_FILENAME
