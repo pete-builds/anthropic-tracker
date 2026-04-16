@@ -11,11 +11,11 @@ FROM python:3.13-slim
 WORKDIR /app
 COPY --from=builder /install /usr/local
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash tracker
+# Create non-root user and data directory
+RUN useradd --create-home --shell /bin/bash tracker \
+    && mkdir -p /data && chown tracker:tracker /data
 USER tracker
 
-# Data volume mount point
 VOLUME /data
 
 ENV TRACKER_DB=/data/tracker.db
