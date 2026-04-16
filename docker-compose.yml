@@ -1,0 +1,27 @@
+services:
+  tracker:
+    build: .
+    container_name: anthropic-tracker
+    volumes:
+      - tracker-data:/data
+    environment:
+      - TRACKER_DB=/data/tracker.db
+    restart: "no"
+
+  # Daily fetch with salary parsing (run via cron on host)
+  # docker compose run --rm tracker-fetch
+  tracker-fetch:
+    build: .
+    container_name: anthropic-tracker-fetch
+    volumes:
+      - tracker-data:/data
+    environment:
+      - TRACKER_DB=/data/tracker.db
+    command: ["fetch", "--with-salary"]
+    profiles:
+      - cron
+    restart: "no"
+
+volumes:
+  tracker-data:
+    name: anthropic-tracker-data
