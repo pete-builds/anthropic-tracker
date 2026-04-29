@@ -196,6 +196,10 @@ volumes:
 
 The web dashboard has no auth. It exposes only public data (already on Anthropic's careers page) but should be reachable only over a trusted network (Tailscale, VPN, or behind a reverse proxy with auth). Don't expose port 3710 directly to the public internet without putting a basic-auth or OIDC layer in front of it.
 
+## Related
+
+- [`anthropic-tracker-mcp`](https://github.com/pete-builds/anthropic-tracker-mcp) — MCP server that exposes this DB plus live Greenhouse queries to Claude Code (10 tools across cached + live data sources)
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
