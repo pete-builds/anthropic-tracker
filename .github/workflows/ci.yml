@@ -37,8 +37,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build image
-        run: docker build -t anthropic-tracker:ci .
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image with SBOM + provenance
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          tags: anthropic-tracker:ci
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          sbom: true
+          provenance: mode=max
 
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@0.24.0
