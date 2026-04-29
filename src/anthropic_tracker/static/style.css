@@ -204,17 +204,14 @@ tr:last-child td { border-bottom: none; }
 /* ========================= */
 /* Chart Containers           */
 /* ========================= */
+/* Chart.js manages canvas dimensions itself when responsive: true is set.
+   Don't size the canvas via CSS — that fights its resize loop and produces
+   a visible skew during scroll-driven reflow until Chart.js's debounced
+   resize catches up. The container gets a fixed height (inline style on
+   each chart) and Chart.js handles the rest. */
 .chart-container {
   position: relative;
   width: 100%;
-}
-
-.chart-container canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100% !important;
-  height: 100% !important;
 }
 
 /* ========================= */
