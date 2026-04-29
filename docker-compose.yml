@@ -1,17 +1,40 @@
 services:
-  tracker:
+  # Web dashboard (FastAPI + htmx). Long-running.
+  web:
     build: .
-    container_name: anthropic-tracker
+    image: anthropic-tracker-web
+    container_name: anthropic-tracker-web
+    entrypoint: ["uvicorn", "anthropic_tracker.web:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "3710:8000"
     volumes:
       - tracker-data:/data
     environment:
       - TRACKER_DB=/data/tracker.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # CLI image (used by `docker compose run --rm tracker <cmd>`).
+  tracker:
+    build: .
+    image: anthropic-tracker
+    volumes:
+      - tracker-data:/data
+    environment:
+      - TRACKER_DB=/data/tracker.db
+    profiles:
+      - cli
     restart: "no"
 
-  # Daily fetch with salary parsing (run via cron on host)
-  # docker compose run --rm tracker-fetch
+  # Daily fetch entrypoint. Triggered by host cron.
+  # Example: 0 10 * * * cd /home/pete/anthropic-tracker && docker compose run --rm tracker-fetch
   tracker-fetch:
     build: .
+    image: anthropic-tracker
     container_name: anthropic-tracker-fetch
     volumes:
       - tracker-data:/data

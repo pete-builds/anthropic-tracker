@@ -30,7 +30,22 @@ def compute_delta(
 
     This is the core operation: it upserts jobs, marks removals,
     computes breakdowns, and writes the daily snapshot row.
+
+    Wrapped in a single transaction so a mid-fetch failure leaves the DB
+    in its prior consistent state instead of partially applying the delta.
     """
+    try:
+        return _compute_delta_inner(conn, current_jobs, snapshot_date)
+    except Exception:
+        conn.rollback()
+        raise
+
+
+def _compute_delta_inner(
+    conn: sqlite3.Connection,
+    current_jobs: list[dict],
+    snapshot_date: str | None,
+) -> DeltaResult:
     today = snapshot_date or date.today().isoformat()
     result = DeltaResult(total=len(current_jobs))
 
