@@ -1,48 +1,48 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-image: &image
+  build: .
+  image: anthropic-tracker:0.1.0
+  environment:
+    TRACKER_DB: /data/tracker.db
+  volumes:
+    - tracker-data:/data
+  logging: *default-logging
+
 services:
   # Web dashboard (FastAPI + htmx). Long-running.
   web:
-    build: .
-    image: anthropic-tracker-web
+    <<: *image
     container_name: anthropic-tracker-web
     entrypoint: ["uvicorn", "anthropic_tracker.web:app", "--host", "0.0.0.0", "--port", "8000"]
     ports:
       - "3710:8000"
-    volumes:
-      - tracker-data:/data
-    environment:
-      - TRACKER_DB=/data/tracker.db
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz').read()"]
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 10s
 
-  # CLI image (used by `docker compose run --rm tracker <cmd>`).
+  # CLI. Same image — Compose dedupes the build because the image tag matches.
+  # Usage: docker compose run --rm tracker <subcommand>
   tracker:
-    build: .
-    image: anthropic-tracker
-    volumes:
-      - tracker-data:/data
-    environment:
-      - TRACKER_DB=/data/tracker.db
-    profiles:
-      - cli
+    <<: *image
+    profiles: [cli]
     restart: "no"
 
-  # Daily fetch entrypoint. Triggered by host cron.
-  # Example: 0 10 * * * cd /home/pete/anthropic-tracker && docker compose run --rm tracker-fetch
+  # Daily fetch entrypoint (host cron triggers this).
+  # 0 10 * * * cd /home/pete/anthropic-tracker && docker compose run --rm tracker-fetch
   tracker-fetch:
-    build: .
-    image: anthropic-tracker
+    <<: *image
     container_name: anthropic-tracker-fetch
-    volumes:
-      - tracker-data:/data
-    environment:
-      - TRACKER_DB=/data/tracker.db
     command: ["fetch", "--with-salary"]
-    profiles:
-      - cron
+    profiles: [cron]
     restart: "no"
 
 volumes:
