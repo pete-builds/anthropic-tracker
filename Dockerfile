@@ -6,23 +6,20 @@ FROM python:3.13-slim@sha256:a0779d7c12fc20be6ec6b4ddc901a4fd7657b8a6bc9def9d3fd
 
 WORKDIR /build
 
-# Copy only metadata first so the dependency install layer caches
-# independently of source changes.
-COPY pyproject.toml README.md ./
-
-# Stub source tree so setuptools can resolve the package name during
-# the deps-only install. Real source is copied in the next layer.
-RUN mkdir -p src/anthropic_tracker && touch src/anthropic_tracker/__init__.py
-
-# BuildKit cache mount: pip wheels persist across rebuilds in CI and locally.
+# Install all transitive deps from the hash-pinned lockfile FIRST. This layer
+# caches independently of source changes and is byte-reproducible across
+# rebuilds. --require-hashes refuses any package whose sha256 isn't in the
+# lockfile. Regenerate with:
+#   uv pip compile pyproject.toml -o requirements.lock --generate-hashes
+COPY requirements.lock .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --prefix=/install .
+    pip install --prefix=/install --require-hashes -r requirements.lock
 
-# Now copy real source and reinstall (only the package itself relayers,
-# not its dependencies).
+# Now install the package itself without re-resolving deps (they're locked).
+COPY pyproject.toml README.md ./
 COPY src/ src/
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --prefix=/install --no-deps --force-reinstall .
+    pip install --prefix=/install --no-deps .
 
 FROM python:3.13-slim@sha256:a0779d7c12fc20be6ec6b4ddc901a4fd7657b8a6bc9def9d3fde89ed5efe0a3d
 
