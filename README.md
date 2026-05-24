@@ -1,5 +1,7 @@
 # Anthropic Hiring Tracker
 
+> **Looking for the MCP server?** See [anthropic-tracker-mcp](https://github.com/pete-builds/anthropic-tracker-mcp), which exposes this tracker's data (plus live Greenhouse queries) to Claude Code and other MCP clients. This repo is the data layer; that repo is the integration layer.
+
 Daily snapshots of Anthropic's open job listings via the Greenhouse public API. Tracks adds, removals, salary ranges, and department-level shifts. Ships with a CLI, a Rich terminal dashboard, and a web dashboard (FastAPI + htmx + Chart.js).
 
 Built to monitor public hiring signals: which teams are growing, which roles disappeared, what compensation bands look like over time. No auth, no scraping, no PII. Pure public-API tracking.
