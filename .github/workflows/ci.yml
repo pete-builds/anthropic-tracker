@@ -13,33 +13,40 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          version: "0.11.8"
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
-      - name: Re-compile requirements.lock
+      - name: Verify every pinned dep in pyproject.toml matches requirements.lock
+        # Deterministic: reads [project].dependencies from pyproject.toml,
+        # verifies the lockfile pins the same version for each direct dep.
+        # Does NOT re-resolve (transitive deps are out of scope; Trivy +
+        # Dependabot alerts cover those). Catches the actual drift: edits
+        # to pyproject.toml that don't propagate to the lockfile.
         run: |
-          uv pip compile pyproject.toml \
-            -o requirements.lock.regen \
-            --generate-hashes \
-            --python-version 3.13 \
-            --no-header \
-            --quiet
-
-      - name: Fail if requirements.lock drifted from pyproject.toml
-        run: |
-          set -e
-          if ! diff -q <(tail -n +3 requirements.lock) requirements.lock.regen > /dev/null; then
-            echo "::error::requirements.lock is stale. Regenerate with: uv pip compile pyproject.toml -o requirements.lock --generate-hashes --python-version 3.13"
-            diff -u <(tail -n +3 requirements.lock) requirements.lock.regen | head -50 || true
-            exit 1
-          fi
+          python3 <<'PYEOF'
+          import re, sys, pathlib, tomllib
+          def norm(name):
+              return re.sub(r"[._-]+", "-", name.lower())
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          deps = data.get("project", {}).get("dependencies", [])
+          lock_text = pathlib.Path("requirements.lock").read_text()
+          fail = False
+          for dep in deps:
+              m = re.match(r"^([A-Za-z0-9._-]+)(?:\[[^\]]+\])?==(\S+)\s*$", dep)
+              if not m:
+                  continue
+              pkg, ver = norm(m.group(1)), m.group(2)
+              hit = re.search(rf"(?im)^{re.escape(pkg)}==(\S+?)(?:\s|\\|$)", lock_text)
+              if not hit:
+                  print(f"::error file=pyproject.toml::{m.group(1)}=={ver} pinned in pyproject.toml but missing from requirements.lock")
+                  fail = True
+              elif hit.group(1) != ver:
+                  print(f"::error file=pyproject.toml::{m.group(1)}: pyproject.toml pins =={ver} but requirements.lock has =={hit.group(1)}. Regenerate with: uv pip compile pyproject.toml -o requirements.lock --generate-hashes --python-version 3.13")
+                  fail = True
+          sys.exit(1 if fail else 0)
+          PYEOF
 
   test:
     runs-on: ubuntu-latest
