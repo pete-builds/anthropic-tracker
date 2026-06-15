@@ -2,7 +2,7 @@
 
 # Both stages use the same pinned base image. Dependabot keeps the digest
 # fresh weekly via .github/dependabot.yml.
-FROM python:3.14-slim@sha256:c845af9399020c7e562969a13689e929074a10fd057acd1b1fad06a2fb068e97 AS builder
+FROM python:3.14-slim@sha256:44dd04494ee8f3b538294360e7c4b3acb87c8268e4d0a4828a6500b1eff50061 AS builder
 
 WORKDIR /build
 
@@ -21,7 +21,7 @@ COPY src/ src/
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --prefix=/install --no-deps .
 
-FROM python:3.14-slim@sha256:c845af9399020c7e562969a13689e929074a10fd057acd1b1fad06a2fb068e97
+FROM python:3.14-slim@sha256:44dd04494ee8f3b538294360e7c4b3acb87c8268e4d0a4828a6500b1eff50061
 
 # Apply Debian security patches on top of the pinned base. Keeps the digest
 # pin for reproducibility while picking up CVE fixes between base rebuilds.
