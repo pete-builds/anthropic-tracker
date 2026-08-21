@@ -1,16 +1,16 @@
-# Anthropic Hiring Tracker
+# Greenhouse Hiring Tracker
 
-> **Looking for the MCP server?** See [anthropic-tracker-mcp](https://github.com/pete-builds/anthropic-tracker-mcp), which exposes this tracker's data (plus live Greenhouse queries) to Claude Code and other MCP clients. This repo is the data layer; that repo is the integration layer.
+> **Looking for the MCP server?** See [greenhouse-hiring-tracker-mcp](https://github.com/pete-builds/greenhouse-hiring-tracker-mcp), which exposes this tracker's data (plus live Greenhouse queries) to Claude Code and other MCP clients. This repo is the data layer; that repo is the integration layer.
 
-Daily snapshots of Anthropic's open job listings via the Greenhouse public API. Tracks adds, removals, salary ranges, and department-level shifts. Ships with a CLI, a Rich terminal dashboard, and a web dashboard (FastAPI + htmx + Chart.js).
+Daily snapshots of a company's open job listings via the Greenhouse public boards API. Tracks adds, removals, salary ranges, and department-level shifts. The board is hardcoded to `anthropic` in the three URL constants at the top of `src/anthropic_tracker/config.py`; the Greenhouse boards API has the same shape for every public board, so repointing those three lines is the whole change. Ships with a CLI, a Rich terminal dashboard, and a web dashboard (FastAPI + htmx + Chart.js).
 
 Built to monitor public hiring signals: which teams are growing, which roles disappeared, what compensation bands look like over time. No auth, no scraping, no PII. Pure public-API tracking.
 
 ## Quick start
 
 ```bash
-git clone https://github.com/pete-builds/anthropic-tracker.git
-cd anthropic-tracker
+git clone https://github.com/pete-builds/greenhouse-hiring-tracker.git
+cd greenhouse-hiring-tracker
 docker compose up -d web                  # dashboard on http://localhost:3710
 docker compose run --rm tracker-fetch     # populate the DB (first run is empty)
 ./scripts/install-cron.sh                 # optional: register the daily fetch
@@ -200,7 +200,7 @@ The web dashboard has no auth. It exposes only public data (already on Anthropic
 
 ## Related
 
-- [`anthropic-tracker-mcp`](https://github.com/pete-builds/anthropic-tracker-mcp) — MCP server that exposes this DB plus live Greenhouse queries to Claude Code (10 tools across cached + live data sources)
+- [`greenhouse-hiring-tracker-mcp`](https://github.com/pete-builds/greenhouse-hiring-tracker-mcp) — MCP server that exposes this DB plus live Greenhouse queries to Claude Code (10 tools across cached + live data sources)
 
 ## License
 
