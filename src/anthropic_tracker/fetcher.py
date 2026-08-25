@@ -49,7 +49,13 @@ def fetch_jobs(content: bool = False) -> list[dict]:
         url += "?content=true"
     with _get_client() as client:
         data = _request_with_retry(client, url)
-    return data.get("jobs", [])
+    # An absent "jobs" key is a broken response, not an empty board. Collapsing
+    # the two is what let a single malformed 200 mark every job removed.
+    if "jobs" not in data:
+        raise ValueError(
+            "Greenhouse response has no 'jobs' key; refusing to treat it as an empty board"
+        )
+    return data["jobs"]
 
 
 def fetch_departments() -> list[dict]:

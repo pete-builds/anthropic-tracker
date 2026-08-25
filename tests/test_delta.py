@@ -1,3 +1,4 @@
+import pytest
 """Tests for delta computation."""
 
 from anthropic_tracker.delta import compute_delta
@@ -72,3 +73,50 @@ class TestComputeDelta:
         result = compute_delta(db, [], snapshot_date="2026-04-15")
         assert result.total == 0
         assert len(result.added) == 0
+
+
+class TestEmptyFetchDoesNotWipe:
+    """One malformed 200 used to mark every job removed, permanently.
+
+    is_active was written in exactly two places: the schema default of 1, and the
+    line that set it to 0. Nothing ever set it back, and the re-add path is
+    INSERT OR IGNORE, so returning jobs were silently skipped. The board read
+    zero forever while reporting the same jobs as "added" every single run.
+    """
+
+    def _job(self, jid: int, title: str) -> dict:
+        return {
+            "id": jid, "title": title, "location": {"name": "SF"},
+            "absolute_url": "u", "internal_job_id": jid, "requisition_id": str(jid),
+            "first_published": "2026-01-01",
+            "departments": [{"id": 1, "name": "Eng"}], "offices": [],
+        }
+
+    def test_empty_payload_against_populated_db_raises(self, db) -> None:
+        jobs = [self._job(1, "MTS"), self._job(2, "Sec")]
+        compute_delta(db, jobs, "2026-08-20")
+        with pytest.raises(ValueError, match="Refusing to compute a delta"):
+            compute_delta(db, [], "2026-08-21")
+        still_active = db.execute(
+            "SELECT COUNT(*) FROM jobs WHERE is_active = 1"
+        ).fetchone()[0]
+        assert still_active == 2, "an empty fetch must not deactivate anything"
+
+    def test_empty_payload_against_empty_db_is_allowed(self, db) -> None:
+        """A genuinely empty first run is not an error."""
+        result = compute_delta(db, [], "2026-08-20")
+        assert result.total == 0
+
+    def test_job_that_disappears_and_returns_is_reactivated(self, db) -> None:
+        jobs = [self._job(1, "MTS"), self._job(2, "Sec")]
+        compute_delta(db, jobs, "2026-08-20")
+        compute_delta(db, [self._job(1, "MTS")], "2026-08-21")
+        assert db.execute(
+            "SELECT is_active FROM jobs WHERE id = 2"
+        ).fetchone()[0] == 0
+        compute_delta(db, jobs, "2026-08-22")
+        row = db.execute(
+            "SELECT is_active, removed_date FROM jobs WHERE id = 2"
+        ).fetchone()
+        assert row[0] == 1, "a returning job must be reactivated, not ignored"
+        assert row[1] is None, "removed_date must be cleared on reactivation"
