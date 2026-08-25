@@ -1,5 +1,6 @@
-import pytest
 """Tests for delta computation."""
+
+import pytest
 
 from anthropic_tracker.delta import compute_delta
 
