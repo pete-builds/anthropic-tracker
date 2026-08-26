@@ -54,6 +54,18 @@ def _compute_delta_inner(
         row["id"]
         for row in conn.execute("SELECT id FROM jobs WHERE is_active = 1").fetchall()
     }
+
+    # Refuse to wipe a populated board on an empty fetch. Anthropic's board going
+    # to genuinely zero open roles overnight is not a thing that happens; a 200
+    # with a malformed or truncated body is. Without this, every job is marked
+    # removed in one run, and because the re-add path is INSERT OR IGNORE nothing
+    # ever brings them back.
+    if not current_jobs and db_active:
+        raise ValueError(
+            f"Refusing to compute a delta: the API returned zero jobs while the "
+            f"database holds {len(db_active)} active. This is a broken fetch, not "
+            f"an empty board. Re-run when the API is healthy."
+        )
     api_ids = {job["id"] for job in current_jobs}
 
     added_ids = api_ids - db_active
@@ -67,6 +79,15 @@ def _compute_delta_inner(
 
         if job_id in added_ids:
             _insert_job(conn, job, today, dept, loc_raw)
+            # _insert_job is INSERT OR IGNORE, so a job that was previously marked
+            # inactive is silently skipped and stays inactive forever. Nothing else
+            # in this package ever sets is_active back to 1, which turned one bad
+            # fetch into a permanent, self-perpetuating dead state: the same jobs
+            # were reported "added" every run while the dashboard read zero.
+            conn.execute(
+                "UPDATE jobs SET is_active = 1, removed_date = NULL, last_seen = ? WHERE id = ?",
+                (today, job_id),
+            )
             result.added.append({"id": job_id, "title": job["title"], "department": dept["name"]})
         else:
             # Update last_seen for existing jobs
