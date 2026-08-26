@@ -25,7 +25,21 @@ FROM python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9
 
 # Apply Debian security patches on top of the pinned base. Keeps the digest
 # pin for reproducibility while picking up CVE fixes between base rebuilds.
-RUN apt-get update && apt-get -y upgrade && rm -rf /var/lib/apt/lists/*
+#
+# The ADD must stay directly above the RUN, or the sentence above stops being
+# true. CI builds with a gha cache and this RUN's cache key is only its command
+# string, which never changes, so buildkit served the layer from cache forever
+# and "CVE fixes between base rebuilds" meant whatever was current the day it
+# was first built. On 2026-08-26 that had the Trivy gate failing every PR here
+# on libssl3t64 CVE-2026-14456 while trixie-security had carried the fixed
+# 3.5.7-1~deb13u2 for some time.
+#
+# trixie-security's Release file changes when and only when a security update
+# is published, so the layer rebuilds exactly when there is something new to
+# install and stays cached otherwise.
+ADD https://deb.debian.org/debian-security/dists/trixie-security/Release /tmp/debian-security-release
+RUN apt-get update && apt-get -y upgrade \
+    && rm -rf /tmp/debian-security-release /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=builder /install /usr/local
